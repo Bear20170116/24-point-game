@@ -1,16 +1,37 @@
 {
-    "name": "24点游戏",
-    "short_name": "24点",
-    "description": "经典的24点数学游戏",
-    "start_url": "index.html",
-    "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#3b82f6",
-    "icons": [
-        {
-            "src": "icons/icon-512x512.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        }
-    ]
+  "name": "24点通关游戏",
+  "short_name": "24点游戏",
+  "description": "经典24点数学游戏，用4个数字通过加减乘除运算得到24",
+  "start_url": "/24-point-game/",
+  "display": "standalone",
+  "background_color": "#3b82f6",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "开始新游戏",
+      "short_name": "新游戏",
+      "description": "开始一局新的24点游戏",
+      "url": "/24-point-game/?newgame=true",
+      "icons": [{ "src": "icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ],
+  "categories": ["games", "education", "entertainment"],
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "prefer_related_applications": false
 }
