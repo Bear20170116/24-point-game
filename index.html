@@ -71,6 +71,21 @@
             transform: translateY(-1px);
         }
         
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            transform: translateY(-1px);
+        }
+        
+        .difficulty-btn.active {
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        
         .input-answer {
             border: 2px solid #e5e7eb;
             transition: all 0.3s ease;
@@ -160,6 +175,16 @@
                 </div>
             </div>
 
+            <!-- 难度选择 -->
+            <div class="mb-6">
+                <label class="block text-white text-lg font-medium mb-2">难度选择:</label>
+                <div class="flex gap-2">
+                    <button id="easyBtn" class="btn-success flex-1 px-4 py-2 rounded-lg text-white font-semibold difficulty-btn active">简单</button>
+                    <button id="mediumBtn" class="btn-warning flex-1 px-4 py-2 rounded-lg text-white font-semibold difficulty-btn">中等</button>
+                    <button id="hardBtn" class="btn-danger flex-1 px-4 py-2 rounded-lg text-white font-semibold difficulty-btn">困难</button>
+                </div>
+            </div>
+
             <!-- 操作按钮 -->
             <div class="flex gap-3 mb-6">
                 <button id="hintBtn" class="btn-warning flex-1 px-4 py-3 rounded-lg text-white font-semibold flex items-center justify-center">
@@ -217,12 +242,13 @@
             totalAttempts: 0,
             gameHistory: [],
             hintsUsed: 0,
-            skipsUsed: 0
+            skipsUsed: 0,
+            difficulty: 'easy' // 默认难度
         };
 
         // 数字池（不同难度的数字组合）
         const numberPools = {
-            easy: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            easy: [1, 2, 3, 4, 5, 6, 7, 8, 9],
             medium: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             hard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
         };
@@ -288,14 +314,23 @@
         function generateNewProblem() {
             let numbers;
             
-            // 前10关使用预定义题目，之后随机生成
-            if (gameState.currentLevel <= predefinedProblems.length) {
-                numbers = predefinedProblems[gameState.currentLevel - 1];
-            } else {
+            // 简单难度不使用预定义题目（避免出现大于9的数字和需要分数的题目）
+            if (gameState.difficulty === 'easy') {
                 numbers = generateRandomNumbers();
-                // 确保题目有解（简单验证）
-                while (!hasValidSolution(numbers)) {
+                // 确保题目有解且所有数字都不超过9
+                while (!hasValidSolution(numbers) || Math.max(...numbers) > 9) {
                     numbers = generateRandomNumbers();
+                }
+            } else {
+                // 中等和困难难度：前10关使用预定义题目，之后随机生成
+                if (gameState.currentLevel <= predefinedProblems.length) {
+                    numbers = predefinedProblems[gameState.currentLevel - 1];
+                } else {
+                    numbers = generateRandomNumbers();
+                    // 确保题目有解
+                    while (!hasValidSolution(numbers)) {
+                        numbers = generateRandomNumbers();
+                    }
                 }
             }
             
@@ -306,14 +341,7 @@
 
         // 根据难度生成随机数字
         function generateRandomNumbers() {
-            let pool;
-            if (gameState.currentLevel <= 10) {
-                pool = numberPools.easy;
-            } else if (gameState.currentLevel <= 20) {
-                pool = numberPools.medium;
-            } else {
-                pool = numberPools.hard;
-            }
+            let pool = numberPools[gameState.difficulty] || numberPools.easy;
             
             const numbers = [];
             for (let i = 0; i < 4; i++) {
@@ -322,12 +350,10 @@
             return numbers;
         }
 
-        // 简单验证是否有解（基于一些常见模式）
+        // 详细验证是否有解（递归检查所有可能的组合）
         function hasValidSolution(numbers) {
-            // 检查是否包含常见的24点组合
+            // 检查是否包含预定义的有解组合
             const sorted = [...numbers].sort((a, b) => a - b);
-            
-            // 检查预定义的有解组合
             for (const problem of predefinedProblems) {
                 const sortedProblem = [...problem].sort((a, b) => a - b);
                 if (arraysEqual(sorted, sortedProblem)) {
@@ -335,8 +361,223 @@
                 }
             }
             
-            // 基本的数学验证
-            return true; // 简化版本，实际应该有更复杂的验证
+            // 检查常见的24点模式
+            const sum = numbers.reduce((a, b) => a + b, 0);
+            const product = numbers.reduce((a, b) => a * b, 1);
+            
+            // 检查和为24的情况
+            if (sum === 24) return true;
+            
+            // 检查积为24的情况
+            if (product === 24) return true;
+            
+            // 检查常见的乘法组合
+            const commonPairs = [
+                [3, 8], [4, 6], [2, 12], [1, 24]
+            ];
+            
+            for (const pair of commonPairs) {
+                if (hasPairSum(numbers, pair[0]) && hasPairSum(numbers, pair[1])) {
+                    return true;
+                }
+                if (hasPairProduct(numbers, pair[0]) && hasPairProduct(numbers, pair[1])) {
+                    return true;
+                }
+            }
+            
+            // 检查是否包含特殊组合（如 1,5,5,5 等）
+            const specialCombinations = [
+                [1, 5, 5, 5],   // (5-1/5)*5=24
+                [3, 3, 7, 7],   // (3+3/7)*7=24
+                [2, 2, 11, 11], // (2+2/11)*11=24
+                [3, 3, 8, 8],   // 8/(3-8/3)=24
+                [1, 3, 4, 6],   // 6/(1-3/4)=24
+                [1, 4, 5, 6],   // 4/(1-5/6)=24
+                [2, 4, 10, 10]  // (2+4/10)*10=24
+            ];
+            
+            for (const combo of specialCombinations) {
+                if (hasSameElements(numbers, combo)) {
+                    return true;
+                }
+            }
+            
+            // 对于简单难度，确保有简单解法
+            if (gameState.difficulty === 'easy') {
+                return hasEasySolution(numbers);
+            }
+            
+            // 对于中等和困难难度，允许更复杂的解法
+            return hasComplexSolution(numbers);
+        }
+        
+        // 检查是否有简单解法（无分数运算）
+        function hasEasySolution(numbers) {
+            // 检查是否可以通过整数运算得到24
+            const operations = ['+', '-', '*']; // 简单难度不使用除法，避免分数
+            
+            // 尝试所有可能的二元运算组合
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (i === j) continue;
+                    for (let k = 0; k < 4; k++) {
+                        if (k === i || k === j) continue;
+                        for (let l = 0; l < 4; l++) {
+                            if (l === i || l === j || l === k) continue;
+                            
+                            // 尝试不同的运算顺序
+                            for (const op1 of operations) {
+                                for (const op2 of operations) {
+                                    for (const op3 of operations) {
+                                        try {
+                                            // ((a op1 b) op2 c) op3 d
+                                            const expr1 = `(((${numbers[i]}${op1}${numbers[j]})${op2}${numbers[k]})${op3}${numbers[l]})`;
+                                            const result1 = evaluateExpression(expr1);
+                                            if (Number.isInteger(result1) && Math.abs(result1 - 24) < 0.001) return true;
+                                            
+                                            // (a op1 (b op2 c)) op3 d
+                                            const expr2 = `((${numbers[i]}${op1}(${numbers[j]}${op2}${numbers[k]}))${op3}${numbers[l]})`;
+                                            const result2 = evaluateExpression(expr2);
+                                            if (Number.isInteger(result2) && Math.abs(result2 - 24) < 0.001) return true;
+                                            
+                                            // a op1 ((b op2 c) op3 d)
+                                            const expr3 = `(${numbers[i]}${op1}(((${numbers[j]}${op2}${numbers[k]})${op3}${numbers[l]}))`;
+                                            const result3 = evaluateExpression(expr3);
+                                            if (Number.isInteger(result3) && Math.abs(result3 - 24) < 0.001) return true;
+                                            
+                                            // (a op1 b) op2 (c op3 d)
+                                            const expr4 = `((${numbers[i]}${op1}${numbers[j]})${op2}(${numbers[k]}${op3}${numbers[l]}))`;
+                                            const result4 = evaluateExpression(expr4);
+                                            if (Number.isInteger(result4) && Math.abs(result4 - 24) < 0.001) return true;
+                                        } catch (error) {
+                                            // 忽略计算错误
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 检查是否可以通过包含除法但结果仍为整数的运算
+            const divisionOperations = ['+', '-', '*', '/'];
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (i === j) continue;
+                    for (let k = 0; k < 4; k++) {
+                        if (k === i || k === j) continue;
+                        for (let l = 0; l < 4; l++) {
+                            if (l === i || l === j || l === k) continue;
+                            
+                            for (const op1 of divisionOperations) {
+                                for (const op2 of divisionOperations) {
+                                    for (const op3 of divisionOperations) {
+                                        try {
+                                            const expr = `(((${numbers[i]}${op1}${numbers[j]})${op2}${numbers[k]})${op3}${numbers[l]})`;
+                                            const result = evaluateExpression(expr);
+                                            // 确保结果是整数且等于24
+                                            if (Number.isInteger(result) && Math.abs(result - 24) < 0.001) {
+                                                // 验证运算过程中没有分数（所有中间结果都是整数）
+                                                if (hasOnlyIntegerResults(expr)) {
+                                                    return true;
+                                                }
+                                            }
+                                        } catch (error) {
+                                            // 忽略计算错误
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return false;
+        }
+        
+        // 检查表达式计算过程中是否只有整数结果
+        function hasOnlyIntegerResults(expr) {
+            try {
+                // 简单的验证：确保除法运算的结果是整数
+                const divisionChecks = expr.match(/\d+\/\d+/g);
+                if (divisionChecks) {
+                    for (const div of divisionChecks) {
+                        const [a, b] = div.split('/').map(Number);
+                        if (a % b !== 0) {
+                            return false; // 存在不能整除的除法
+                        }
+                    }
+                }
+                return true;
+            } catch (error) {
+                return false;
+            }
+        }
+        
+        // 检查是否有复杂解法（允许分数运算）
+        function hasComplexSolution(numbers) {
+            // 对于中等和困难难度，放宽验证条件
+            // 但仍然排除明显无解的组合
+            const sorted = [...numbers].sort((a, b) => a - b);
+            
+            // 排除全为1的情况
+            if (sorted.every(n => n === 1)) return false;
+            
+            // 排除四个大数的情况（如四个19、20）
+            if (sorted.every(n => n >= 18)) return false;
+            
+            // 对于困难难度，允许更多可能性
+            if (gameState.difficulty === 'hard') {
+                return true;
+            }
+            
+            // 中等难度：确保有一定的解法可能性
+            return hasEasySolution(numbers) || 
+                   hasPairSum(numbers, 24) || 
+                   hasPairProduct(numbers, 24) ||
+                   hasTripleSum(numbers, 24);
+        }
+        
+        // 检查是否有两个数的和为目标值
+        function hasPairSum(numbers, target) {
+            for (let i = 0; i < numbers.length; i++) {
+                for (let j = i + 1; j < numbers.length; j++) {
+                    if (numbers[i] + numbers[j] === target) return true;
+                }
+            }
+            return false;
+        }
+        
+        // 检查是否有两个数的积为目标值
+        function hasPairProduct(numbers, target) {
+            for (let i = 0; i < numbers.length; i++) {
+                for (let j = i + 1; j < numbers.length; j++) {
+                    if (numbers[i] * numbers[j] === target) return true;
+                }
+            }
+            return false;
+        }
+        
+        // 检查是否有三个数的和为目标值
+        function hasTripleSum(numbers, target) {
+            for (let i = 0; i < numbers.length; i++) {
+                for (let j = i + 1; j < numbers.length; j++) {
+                    for (let k = j + 1; k < numbers.length; k++) {
+                        if (numbers[i] + numbers[j] + numbers[k] === target) return true;
+                    }
+                }
+            }
+            return false;
+        }
+        
+        // 检查两个数组是否包含相同的元素（不考虑顺序）
+        function hasSameElements(arr1, arr2) {
+            if (arr1.length !== arr2.length) return false;
+            const sorted1 = [...arr1].sort((a, b) => a - b);
+            const sorted2 = [...arr2].sort((a, b) => a - b);
+            return arraysEqual(sorted1, sorted2);
         }
 
         // 数组比较
@@ -527,6 +768,22 @@
             updateDisplay();
         }
 
+        // 设置难度
+        function setDifficulty(difficulty) {
+            gameState.difficulty = difficulty;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(difficulty + 'Btn').classList.add('active');
+            
+            showMessage(`🎯 难度已设置为：${difficulty === 'easy' ? '简单' : difficulty === 'medium' ? '中等' : '困难'}`, 'info');
+            
+            // 生成新题目
+            generateNewProblem();
+        }
+
         // 显示消息
         function showMessage(text, type = 'info') {
             elements.message.textContent = text;
@@ -578,6 +835,11 @@
             elements.checkBtn.addEventListener('click', checkAnswer);
             elements.hintBtn.addEventListener('click', getHint);
             elements.skipBtn.addEventListener('click', skipProblem);
+            
+            // 难度选择按钮
+            document.getElementById('easyBtn').addEventListener('click', () => setDifficulty('easy'));
+            document.getElementById('mediumBtn').addEventListener('click', () => setDifficulty('medium'));
+            document.getElementById('hardBtn').addEventListener('click', () => setDifficulty('hard'));
             
             elements.answerInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
