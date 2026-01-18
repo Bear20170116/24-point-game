@@ -1,0 +1,16 @@
+{
+    "name": "24点游戏",
+    "short_name": "24点",
+    "description": "经典的24点数学游戏",
+    "start_url": "index.html",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#3b82f6",
+    "icons": [
+        {
+            "src": "icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
